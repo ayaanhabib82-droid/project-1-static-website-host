@@ -1,0 +1,25 @@
+# Terraform working directory and state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local variable files can contain credentials
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Local overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Editor and operating-system files
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

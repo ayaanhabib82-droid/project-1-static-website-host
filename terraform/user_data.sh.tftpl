@@ -1,0 +1,141 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf install -y nginx
+curl --fail --silent --show-error --location \
+  https://amazoncloudwatch-agent.s3.amazonaws.com/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm \
+  --output /tmp/amazon-cloudwatch-agent.rpm
+dnf install -y /tmp/amazon-cloudwatch-agent.rpm
+
+cat > /usr/share/nginx/html/index.html <<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Corephuna Global — a simple landing page hosted on AWS.">
+  <title>Corephuna Global</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: #102b46;
+      background: #f5f8fc;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 26px 32px;
+    }
+    .brand { font-size: 18px; font-weight: 750; letter-spacing: .08em; }
+    .status { color: #49647f; font-size: 14px; }
+    .hero {
+      padding: 100px 24px 110px;
+      background: linear-gradient(135deg, #102b46, #164f70);
+      color: white;
+      text-align: center;
+    }
+    .hero-inner { max-width: 760px; margin: 0 auto; }
+    .eyebrow {
+      color: #9ee5d0;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 18px 0; font-size: clamp(42px, 7vw, 72px); line-height: 1.05; }
+    .intro { max-width: 600px; margin: 0 auto; color: #d8e7f2; font-size: 18px; line-height: 1.7; }
+    .button {
+      display: inline-block;
+      margin-top: 32px;
+      padding: 13px 22px;
+      border-radius: 6px;
+      background: #9ee5d0;
+      color: #102b46;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    main { max-width: 1000px; margin: 0 auto; padding: 64px 24px 80px; }
+    h2 { margin: 0 0 12px; font-size: 30px; }
+    .section-intro { margin: 0; color: #526b82; line-height: 1.7; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+    .card { padding: 24px; border: 1px solid #dbe5ef; border-radius: 10px; background: white; }
+    .card h3 { margin: 0 0 10px; font-size: 17px; }
+    .card p { margin: 0; color: #526b82; line-height: 1.65; }
+    footer { padding: 22px; color: #64798d; text-align: center; font-size: 13px; }
+    @media (max-width: 650px) {
+      header { padding: 20px; }
+      .status { font-size: 12px; }
+      .hero { padding: 76px 22px; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">COREPHUNA GLOBAL</div>
+    <div class="status">A connected world starts here</div>
+  </header>
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">Welcome to Corephuna Global</div>
+      <h1>Global connections.<br>New possibilities.</h1>
+      <p class="intro">Explore a world of ideas, opportunities, and connections. We’re glad you’re here.</p>
+      <a class="button" href="#about">Discover more</a>
+    </div>
+  </section>
+  <main id="about">
+    <h2>Moving forward, together</h2>
+    <p class="section-intro">A simple introduction to Corephuna Global, hosted on a resilient AWS web architecture.</p>
+    <div class="cards">
+      <article class="card">
+        <h3>Think globally</h3>
+        <p>Bring fresh perspectives together and look beyond borders.</p>
+      </article>
+      <article class="card">
+        <h3>Build connections</h3>
+        <p>Discover shared interests and create room for new opportunities.</p>
+      </article>
+      <article class="card">
+        <h3>Move forward</h3>
+        <p>Turn promising ideas into meaningful next steps.</p>
+      </article>
+    </div>
+  </main>
+  <footer>&copy; 2026 Corephuna Global</footer>
+</body>
+</html>
+HTML
+
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'JSON'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "${log_group_name}",
+            "log_stream_name": "{instance_id}/access"
+          },
+          {
+            "file_path": "/var/log/nginx/error.log",
+            "log_group_name": "${log_group_name}",
+            "log_stream_name": "{instance_id}/error"
+          }
+        ]
+      }
+    }
+  }
+}
+JSON
+
+systemctl enable --now nginx
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
